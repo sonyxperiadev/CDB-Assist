@@ -1,0 +1,98 @@
+; Windows 2000, XP, Vista and 7 / 8 (x32 and x64) setup file for CDC
+
+[Version] 
+Signature="$Windows NT$" 
+Class=Ports 
+ClassGuid={4D36E978-E325-11CE-BFC1-08002BE10318} 
+
+Provider=%CDC% 
+LayoutFile=layout.inf 
+DriverVer=10/15/1999,5.0.2153.1 
+
+;----------------------------------------------------------
+; Targets
+;----------------------------------------------------------
+[Manufacturer] 
+%CDC%=CDC, NTamd64
+
+[CDC] 
+%CDCPORT1%=Reader, USB\VID_16D0&PID_cdb3&MI_02
+%CDCPORT2%=Reader, USB\VID_16D0&PID_cdb3&MI_04
+
+[CDC.NTamd64]
+%CDCPORT1%=DriverInstall, USB\VID_16D0&PID_cdb3&MI_02
+%CDCPORT2%=DriverInstall, USB\VID_16D0&PID_cdb3&MI_04
+
+;----------------------------------------------------------
+; Windows 2K, XP, and Vista32
+;----------------------------------------------------------
+[Reader_Install.NTx86] 
+
+
+[DestinationDirs] 
+DefaultDestDir=12 
+Reader.NT.Copy=12 
+
+[Reader.NT] 
+include=mdmcpq.inf
+CopyFiles=Reader.NT.Copy 
+AddReg=Reader.NT.AddReg 
+
+[Reader.NT.Copy] 
+usbser.sys 
+
+[Reader.NT.AddReg]
+HKR,,DevLoader,,*ntkern 
+HKR,,NTMPDriver,,usbser.sys 
+HKR,,EnumPropPages32,,"MsPorts.dll,SerialPortPropPageProvider" 
+
+[Reader.NT.Services] 
+AddService = usbser, 0x00000002, Service_Inst 
+
+[Service_Inst] 
+DisplayName = %Serial.SvcDesc% 
+ServiceType = 1 ; SERVICE_KERNEL_DRIVER 
+StartType = 3 ; SERVICE_DEMAND_START 
+ErrorControl = 1 ; SERVICE_ERROR_NORMAL 
+ServiceBinary = %12%\usbser.sys 
+LoadOrderGroup = Base 
+
+
+;----------------------------------------------------------
+; Vista64
+;----------------------------------------------------------
+
+[DriverInstall.NTamd64]
+include=mdmcpq.inf
+CopyFiles=DriverCopyFiles.NTamd64
+AddReg=DriverInstall.NTamd64.AddReg
+
+[DriverCopyFiles.NTamd64]
+usbser.sys,,,0x20
+
+[DriverInstall.NTamd64.AddReg]
+HKR,,DevLoader,,*ntkern
+HKR,,NTMPDriver,,usbser.sys
+HKR,,EnumPropPages32,,"MsPorts.dll,SerialPortPropPageProvider"
+
+[DriverInstall.NTamd64.Services]
+AddService=usbser, 0x00000002, DriverService.NTamd64
+
+[DriverService.NTamd64]
+DisplayName=%Serial.SvcDesc%
+ServiceType=1
+StartType=3
+ErrorControl=1
+ServiceBinary=%12%\usbser.sys
+
+;----------------------------------------------------------
+; String
+;----------------------------------------------------------
+
+[Strings] 
+CDC = "Generic CDC" 
+CDCPORT1 = "CDB Assist Control Port"
+CDCPORT2 = "CDB Assist Target Port"
+
+Serial.SvcDesc = "USB CDC Serial emulation driver" 
+
