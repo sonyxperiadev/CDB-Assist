@@ -1,0 +1,30 @@
+Manufacturing notes:
+
+Single-side (TOP) load for all components
+White LPI solder mask
+Black silkscreen
+IPC-4552 ENIG finish, no Pb
+
+Ideal layer stackup (top to bottom):
+1 oz/1.4mil top/layer 1 copper
+6.7mil prepreg
+0.5 oz/0.7mil layer 2 copper
+47 mil core
+0.5 oz/0.7mil layer 3 copper
+6.7mil prepreg
+1 oz/1.4mil bottom/layer 4 copper
+
+All copper layers positive
+PCB thickness 62mil/1.6mm total
+FR4 or FR408 material
+
+4 thru-hole connectors:
+USB1 (vertical RA USB-A connector)
+P1 (Right-angle 2x5 header)
+VBAT4/VBUS Out: Red banana jack
+GND4/GND: Black banana jack
+
+Board cutout dimension marked “CUTOUT” : 325 x 550mil
+
+
+For reference, an image of the latest existing hardware (v3.0) is attached. There are only a few changes to the layout between the current v3.1 and v3.0, mainly around USB5 as a polyfuse was added. P3 is also shown mounted in the v3 image, this is now a no-mount on v3.1. As the panel was laid out the wrong way for v3.0 (and the fact that I hand assembled the boards) the two parts of the board were separated before assembly - this has now been corrected for v3.1 (the board is NOT intended to be separated into two pieces before, during or after assembly).
