@@ -117,7 +117,7 @@ void ActionHandler(uint8_t* buf, uint8_t len) {
 														"  [A/a] Btn1:%s  [B/b] Btn2:%s  [C/c] Btn3:%s\033[K\r\n"\
 														"  [V/v] VBus:%s  [1234] Sel USB Port(%x) VBUS=%5.2fV %6.1fmA  UART Vref=%04umV\033[K\r\n"\
 														"  [D/d] Load:%s  [I] Set load current(%umA)  Actual=%6.1fmA  Temp=%5.1fC\033[K\r\n"\
-                                                        "  Dbg: [r] RawPWMOvr: %d, VBATSAR:%5umV USB2VBUS:%5umV USB3VBUS:%5umV\033[K\r\n"\
+                                                        /*"  Dbg: [r] RawPWMOvr: %d,"*/ "  VBATSAR:%5umV USB2VBUS:%5umV USB3VBUS:%5umV\033[K\r\n"\
 														"\033[11A\033[?25h",
 														ver>>4,ver&0xf,swversion,GetSerialPtr(), // hw version+sw version+USB serial
 														tmpmeas,tmpmeas,
@@ -134,7 +134,7 @@ void ActionHandler(uint8_t* buf, uint8_t len) {
                                                         setdummyloadcurrent,
                                                         DummyLoad_GetCur(),
                                                         DummyLoad_GetTemp(),
-                                                        PWM_GetOverride(),
+//                                                        PWM_GetOverride(),
                                                         ADC_GetMillivolt(VBATSENSE),
                                                         ADC_GetMillivolt(USB2SENSE),
                                                         ADC_GetMillivolt(USB3SENSE));
@@ -260,7 +260,7 @@ void ActionHandler(uint8_t* buf, uint8_t len) {
 					outlen+=res;
 					printf("\nDummy load current input mode");
 					break;
-				case 'r':
+/*				case 'r':
 					mode='r';
 					accumulator=0;
 					maxdigits=4;
@@ -271,7 +271,7 @@ void ActionHandler(uint8_t* buf, uint8_t len) {
 					outlen+=res;
 					printf("\nRaw PWM input mode");
 					break;
-                case '[':
+*/                case '[':
                     Bootloadable_1_Load();
                     break;
 				default:
