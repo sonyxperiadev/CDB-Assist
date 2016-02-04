@@ -24,11 +24,15 @@
 #include <stdint.h>
 
 #include "adc.h"
+#include "nv.h"
 
 // Vtarget is considered valid if above 0.89V
 #define VTARGETVALID (0.89f / 5.0f * 4096.0f)
 
-int16_t adcvalues[ADCMAX] = { 0, 0, 0, 0 };
+int16_t adcvalues[ADCMAX] = { 0, 0, 0, 0, 0 };
+int16_t adcavgvalues[ADCMAX] = { 0, 0, 0, 0, 0 };
+int32_t adcavgaccum[ADCMAX] = { 0, 0, 0, 0, 0 };
+uint16_t adcavgaccumcnt[ADCMAX] = { 0, 0, 0, 0, 0 };
 
 // ADC_SAR_1 deals with Dummy load current and Target Vref voltages (ADC Vref=2.5V for 5V full-scale measurements)
 // ADC_SAR_2 deals with VBAT, USB2VBUS and USB3VBUS voltages (ADC Vref=1.024V for 2.048V full-scale measurements)
@@ -47,7 +51,15 @@ CY_ISR( ADC_SAR_1_ISR ) {
     if((count & 0x7f) > 19) {
         accum -= hi;
         accum -= lo;
-        adcvalues[(count >> 7) + DUMMYLOAD] = accum >> 4;
+        uint8_t adcidx = (count >> 7) + DUMMYLOAD;
+        adcvalues[adcidx] = accum >> 4;
+        adcavgaccum[adcidx] += accum >> 4;
+        adcavgaccumcnt[adcidx]++;
+        if(adcavgaccumcnt[adcidx] > 256) {
+            adcavgvalues[adcidx] = adcavgaccum[adcidx] >> 8;
+            adcavgaccum[adcidx] = 0;
+            adcavgaccumcnt[adcidx] = 0;
+        }
         accum = 0;
         hi = 0;
         lo = 0xffff;
@@ -73,6 +85,13 @@ CY_ISR( ADC_SAR_2_ISR ) {
         accum -= hi;
         accum -= lo;
         adcvalues[ch] = accum >> 4;
+        adcavgaccum[ch] += accum >> 4;
+        adcavgaccumcnt[ch]++;
+        if(adcavgaccumcnt[ch] > 256) {
+            adcavgvalues[ch] = adcavgaccum[ch] >> 8;
+            adcavgaccum[ch] = 0;
+            adcavgaccumcnt[ch] = 0;
+        }
         accum = 0;
         hi = 0;
         lo = 0xffff;
@@ -81,6 +100,21 @@ CY_ISR( ADC_SAR_2_ISR ) {
         count = 0;
         AMuxSeq_1_Next();
     }
+}
+
+float ADC_GetmVGain(int8_t gainadj) {
+    float retval;
+    // ADC readout * 22528mV / 4096 * gain adj
+    retval = (22528.0f/4096.0f);
+    retval *= (1 + ((float)(gainadj) * 0.001f)); // Adjust +/- 10% with a +/-100 adjust value    
+    return retval;
+}
+
+float adcgain, adcgainvolt;
+
+void ADC_CalcGain(void) {
+    adcgain = ADC_GetmVGain( NVREAD->vbatvolt_adcgainadj );
+    adcgainvolt = adcgain / 1000.0f;
 }
 
 void ADC_Init(void) {
@@ -95,6 +129,7 @@ void ADC_Init(void) {
     ADC_SAR_1_StartConvert();
     ADC_SAR_2_IRQ_Enable();
     ADC_SAR_2_StartConvert();
+    ADC_CalcGain();
 }
 
 void ADC_Work( void ) {
@@ -106,11 +141,12 @@ void ADC_Work( void ) {
 float ADC_GetVoltage( ADC_type sel ) {
     float retval = -1;
     if( sel < ADCMAX ) {
-        float tmp = (float)adcvalues[sel];
+        float tmp = (float)adcavgvalues[sel];
+        tmp += NVREAD->vbatvolt_adcoffsetadj;
         if( sel == VTARGETSENSE ) {
             tmp *= (5.0f / 4096.0f); // Convert to actual Volts
         } else {
-            tmp *= (22.528f / 4096.0f); // Convert to actual Volts
+            tmp *= adcgainvolt; // Convert to actual Volts
         }
         retval = tmp;
     }
@@ -120,15 +156,14 @@ float ADC_GetVoltage( ADC_type sel ) {
 uint16_t ADC_GetMillivolt( ADC_type sel ) {
     uint16_t retval = 0;
     if( sel < ADCMAX ) {
-        uint32_t tmp = adcvalues[sel];
+        float tmp = (float)adcavgvalues[sel];
+        tmp += NVREAD->vbatvolt_adcoffsetadj;
         if( sel == VTARGETSENSE ) {
-            tmp *= 625; // Convert to actual millivolts
-            tmp >>= 9; // Net result: Multiply by 5000, divide by 4096 (same as multiply by 625, divide by 512)
-        } else { // 22528 mv full-scale when using 2.048V ref and 1:11 dividers
-            tmp *= 2816; // Convert to actual millivolts
-            tmp >>= 9; // Net result: Multiply by 22528, divide by 4096 (same as multiply by 2816, divide by 512)
+            tmp *= (5000.0f / 4096.0f);
+        } else {
+            tmp *= adcgain; // Convert to actual millivolts
         }
-        retval = tmp;
+        retval = (uint16_t)tmp;
     }
     return retval;
 }
@@ -137,6 +172,14 @@ uint16_t ADC_GetRaw( ADC_type sel ) {
     uint16_t retval = 0;
     if( sel < ADCMAX ) {
         retval = adcvalues[sel];
+    }
+    return retval;
+}
+
+uint16_t ADC_GetRawAvg( ADC_type sel ) {
+    uint16_t retval = 0;
+    if( sel < ADCMAX ) {
+        retval = adcavgvalues[sel];
     }
     return retval;
 }

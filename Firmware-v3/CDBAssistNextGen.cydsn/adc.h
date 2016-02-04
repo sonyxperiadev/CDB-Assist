@@ -12,11 +12,14 @@ typedef enum {//vbat otg chg (adc2) dummyload vtarget (adc1)
     ADCMAX
 } ADC_type;
 
+float ADC_GetmVGain(int8_t gainadj);
+void ADC_CalcGain(void);
 void ADC_Init( void );
 void ADC_Work( void );
 float ADC_GetVoltage( ADC_type sel );
 uint16_t ADC_GetMillivolt( ADC_type sel );
 uint16_t ADC_GetRaw( ADC_type sel );
+uint16_t ADC_GetRawAvg( ADC_type sel );
 uint8_t ADC_VtargetValid( void );
 
 #endif /* ADC_H_ */
