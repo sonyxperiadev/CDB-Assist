@@ -102,10 +102,10 @@ void PWM_Work(float actualvolt, float actualcur) {
 	curpwm = PID.myOutput;
 #else
     // Simple non-PID regulation
-    if(pwmactvolt<pwmsetvolt) {
+    if(pwmactvolt<pwmsetvolt && pwmactcur<pwmsetcur) {
         curpwm++;
         if(curpwm>1800) curpwm=1800;
-    } else if(pwmactvolt>pwmsetvolt) {
+    } else if(pwmactvolt>pwmsetvolt || pwmactcur>pwmsetcur) {
         curpwm--;
         if(curpwm<0) curpwm=0;
     }
