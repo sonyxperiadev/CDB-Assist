@@ -26,10 +26,39 @@
 #include "adc.h"
 #include "nv.h"
 
-float dummyload_minvolt,dummyload_cur,dummyload_temp;
+uint16_t dummyload_minvolt;
+float dummyload_cur,dummyload_temp;
 uint8_t dummyload_maxdac,dummyload_curdac;
 float dummyload_dacgain;
 float dummyload_adcgain;
+int8_t dummyload_dacoffset;
+
+float DummyLoad_DAC_GetGain(int8_t gainadj) {
+    float retval;
+    // With a 68R resistor to ground from the CurSet pin the gain should have
+    // been divided by 2785(mA) full-scale, but due to the internal resistance
+    // in the ANAIF_RT_DAC3_SW3 switch connecting the pin to the bus the value
+    // is much higher (resistance in the switch is around 50R, so 68R+50R
+    // gives 2.048mA * (68R+50R) / 50mR sense resistor ~ 4833)
+    retval = (256.0f*64.0f/4833.28f);
+    retval *= (1 + ((float)(gainadj) * 0.001f)); // Adjust +/- 10% with a +/-100 adjust value
+    return retval;
+}
+
+float DummyLoad_ADC_GetGain(int8_t gainadj) {
+    float retval;
+    // ADC readout * 5000mV / 4096 / (50mOhm * 32 PGA gain), result in mA * gain adj
+    // Main sources of error here are the PGA gain and sense resistor accuracy
+    retval = ((5000.0f/4096.0f)/(0.050f * 32));
+    retval *= (1 + ((float)(gainadj) * 0.001f)); // Adjust +/- 10% with a +/-100 adjust value    
+    return retval;
+}
+
+void DummyLoad_CalcGain(uint8_t zerodac) {
+    dummyload_dacgain = DummyLoad_DAC_GetGain( zerodac ? 0 : NVREAD->dummyload_dacgainadj );
+    dummyload_adcgain = DummyLoad_ADC_GetGain( NVREAD->dummyload_adcgainadj );
+    dummyload_dacoffset = zerodac ? 0 : NVREAD->dummyload_dacoffsetadj;
+}
 
 void DummyLoad_Init( void ) {
     IDAC8_1_Start();
@@ -38,33 +67,20 @@ void DummyLoad_Init( void ) {
     DummyLoadDriver_Start();
     PGA_1_Start();
     
-    dummyload_minvolt = 0.0f;
+    dummyload_minvolt = 0;
     dummyload_maxdac = dummyload_curdac = 0;
     
-    // With a 68R resistor to ground from the CurSet pin the gain should have
-    // been divided by 2785(mA) full-scale, but due to the internal resistance
-    // in the ANAIF_RT_DAC3_SW3 switch connecting the pin to the bus the value
-    // is much higher (resistance in the switch is around 50R, so 68R+50R
-    // gives 2.048mA * (68R+50R) / 50mR sense resistor ~ 4833)
-    dummyload_dacgain = (256.0f*64.0f/4833.28f);
-    dummyload_dacgain *= (1 + ((float)(NVREAD->dummyload_dacgainadj) * 0.001f)); // Adjust +/- 10% with a +/-100 adjust value
-    
-    // ADC readout * 5000mV / 4096 / (50mOhm * 32 PGA gain), result in mA * gain adj
-    // Main sources of error here are the PGA gain and sense resistor accuracy
-    dummyload_adcgain = ((5000.0f/4096.0f)/(0.050f * 32));
-    dummyload_adcgain *= (1 + ((float)(NVREAD->dummyload_adcgainadj) * 0.001f)); // Adjust +/- 10% with a +/-100 adjust value    
+    DummyLoad_CalcGain(0);
 }
 
 void DummyLoad_Setpoints(uint16_t minvolt, uint16_t maxcur) {
-    dummyload_minvolt = (float)minvolt;
-    dummyload_minvolt*=0.001f;
-    dummyload_minvolt+=0.010f;
+    dummyload_minvolt = minvolt + 10;
     
     float tmp = (float)maxcur;
     tmp *= dummyload_dacgain; // Apply cal gain here
     tmp += 0.5f; // Rounding
     int16_t dacval = (uint16_t)tmp;
-    dacval += (int16_t)(NVREAD->dummyload_dacoffsetadj);
+    dacval += (int16_t)dummyload_dacoffset;
     if( dacval  < 0 ) dacval = 0;
     
     IDAC8_1_SetValue(0);
@@ -85,7 +101,7 @@ void DummyLoad_Setpoints(uint16_t minvolt, uint16_t maxcur) {
     IDAC8_1_SetValue(dummyload_curdac);
 }
 
-void DummyLoad_Work(float actualvolt) {
+void DummyLoad_Work(uint16_t actualvolt) {
     if(actualvolt<dummyload_minvolt) {
         if(dummyload_curdac>0) {
             dummyload_curdac--;

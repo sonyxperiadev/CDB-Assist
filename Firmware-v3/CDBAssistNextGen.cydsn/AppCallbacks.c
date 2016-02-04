@@ -31,6 +31,7 @@
 #include "adc.h"
 #include "nv.h"
 #include "AppCallbacks.h"
+#include "i2c.h"
 
 #ifdef ENABLE_TARGETUART
 #include "targetuart.h"
@@ -96,8 +97,8 @@ void ActionHandler(uint8_t* buf, uint8_t len) {
                         char swversion[16];
                         GetVersion(VER_FIRMWARE, swversion, sizeof(swversion));
 						uint8_t ver=PWM_GetVersion();
-						uint16_t cvolt=PWM_GetVoltage();
-						float ccur=PWM_GetCurrent();
+						uint16_t cvolt=I2C_Get_VBAT_VoltAvg();
+						float ccur=I2C_Get_VBAT_CurAvg();
 						uint8_t tmpmeas[35];
 						if(mode==1) {
 							res=snprintf(rptr,spaceleft,"\r\n\033[2A");
@@ -187,10 +188,10 @@ void ActionHandler(uint8_t* buf, uint8_t len) {
 				case 'p':
 					if(buf[looper]<'a') {
 						on=1;
-						PWM_Setpoints(setvoltage,setcurrent, 0);
+						PWM_Setpoints(setvoltage,setcurrent);
 						status |= STATUS_VBAT;
 					} else {
-						PWM_Setpoints(0,0,0);
+						PWM_Setpoints(0,0);
 						status &= ~STATUS_VBAT;
 					}
 					if(mode!=0) mode=1;	// Make sure we abort any current or voltage input
@@ -324,7 +325,7 @@ void ActionHandler(uint8_t* buf, uint8_t len) {
 								if(accumulator<=2500) setdummyloadcurrent=accumulator;
 							}
 							if((mode=='u'||mode=='i') && (status & STATUS_VBAT)) {
-								PWM_Setpoints(setvoltage,setcurrent,0);
+								PWM_Setpoints(setvoltage,setcurrent);
 							}
 							if((mode=='I') && (status & STATUS_LOAD)) {
 								DummyLoad_Setpoints(setvoltage,setdummyloadcurrent);

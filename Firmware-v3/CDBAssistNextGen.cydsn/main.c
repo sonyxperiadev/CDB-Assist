@@ -114,11 +114,11 @@ int main()
         float vbatvolt,vbatcur,vbusvolt,vbuscur;
         
         I2C_Work();
-        vbatvolt=I2C_Get_VBAT_Volt();
-        vbatcur=I2C_Get_VBAT_Cur();
+        vbatvolt=(float)I2C_Get_VBAT_VoltAvg() * 0.001f;
+        vbatcur=I2C_Get_VBAT_CurAvg();
 
-        PWM_Work(vbatvolt,vbatcur);
-        DummyLoad_Work(vbatvolt);
+        PWM_Work(I2C_Get_VBAT_Volt(),I2C_Get_VBAT_CurRaw());
+        DummyLoad_Work(I2C_Get_VBAT_Volt());
         
         ADC_Work();
         uint8_t vrefok = ADC_VtargetValid();
@@ -137,7 +137,7 @@ int main()
         }
 
         if(ctr == 0) {
-            vbusvolt=I2C_Get_VBUS_Volt();
+            vbusvolt=(float)I2C_Get_VBUS_Volt() * 0.001f;
             vbuscur=I2C_Get_VBUS_Cur();
             USBMux_UpdateMeasurements(vbusvolt,vbuscur);
             
@@ -183,7 +183,7 @@ int main()
 
             FB_update();
             UpdateCtrl();
-            ctr=100;
+            ctr=256;
         } else {
             ctr--;
         }

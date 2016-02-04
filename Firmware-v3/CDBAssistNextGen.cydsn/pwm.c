@@ -23,8 +23,11 @@
 #include <stdio.h>
 #include "pwm.h"
 #include "PID_v1.h"
+#include "i2c.h"
+#include "nv.h"
 
-float pwmsetvolt,pwmsetcur,pwmactvolt,pwmactcur;
+float inversecurgain,curgain;
+int16_t pwmsetvolt,pwmsetcurAD,pwmactvolt,pwmactcurAD;
 int16_t curpwm;
 // 1ms between each run
 #define PID_TIMEBASE (1)
@@ -32,13 +35,20 @@ uint8_t supplykill;
 
 PidType PID;
 
+void PWM_Recalc(void) {
+    curgain = I2C_GetCurGain(NVREAD->vbatcur_islgainadj);
+    inversecurgain = 1.0f / curgain;
+}
+
 void PWM_Init( void ) {
     CY_SET_REG8(DitherPWM_1_pwmdp_u0__DP_AUX_CTL_REG, 1); // FIFO clear for BuckBoost DitherPWM
     CY_SET_REG8(DitherPWM_1_pwmdp_u0__F0_REG, 0xff); // Period set to 0xff+1 (full 8-bit)
     PWM_SYNC_Start();
     
-    pwmsetvolt = 0.0f;
+    pwmsetvolt = 0;
     supplykill = 1;
+    
+    PWM_Recalc();
     
     PID_init(&PID, 0, 0, 0, PID_Direction_Direct); // Can't supply tuning to PID_Init when not using the default timebase
 	PID_SetSampleTime(&PID, PID_TIMEBASE);
@@ -58,20 +68,21 @@ void PWM_Init( void ) {
 }
 
 uint16_t PWM_GetVoltage(void) {
-    uint16_t retval = 0;
-    if(pwmactvolt > 0.0f) retval = (uint16_t)(pwmactvolt*1000.0f);
-    return retval;
+    return pwmactvolt;
 }
 
 float PWM_GetCurrent(void) {
-    return pwmactcur;
+    float temp = (float)(pwmactcurAD + NVREAD->vbatcur_isloffsetadj);
+    temp *= curgain;
+    return temp;
 }
 
-void PWM_Setpoints(uint16_t volt,uint16_t cur, uint8_t range) {
-    // range is unused in v3 design
-    pwmsetvolt = (float)volt;
-    pwmsetvolt*=0.001f;
-    pwmsetcur = (float)cur;
+void PWM_Setpoints(uint16_t volt,uint16_t cur) {
+    pwmsetvolt = volt;
+    pwmsetcurAD = (int16_t)((float)cur * inversecurgain);
+    pwmsetcurAD -= NVREAD->vbatcur_isloffsetadj;
+    pwmsetcurAD = 0 - pwmsetcurAD; // The current is negative
+    
 	PID.mySetpoint = pwmsetvolt;
     if(volt) {
         supplykill = 0;
@@ -90,10 +101,10 @@ int16_t PWM_GetOverride( void ) {
     return pwmoverride;
 }
 
-void PWM_Work(float actualvolt, float actualcur) {
+void PWM_Work(uint16_t actualvolt, int16_t actualcurraw) {
     static uint8_t isboost = 0;
     pwmactvolt = actualvolt;
-    pwmactcur = actualcur;
+    pwmactcurAD = 0 - actualcurraw; // The current is negative
 
 //#define PWM_PID
 #ifdef PWM_PID
@@ -102,10 +113,10 @@ void PWM_Work(float actualvolt, float actualcur) {
 	curpwm = PID.myOutput;
 #else
     // Simple non-PID regulation
-    if(pwmactvolt<pwmsetvolt && pwmactcur<pwmsetcur) {
+    if(pwmactvolt<pwmsetvolt && pwmactcurAD<pwmsetcurAD) {
         curpwm++;
         if(curpwm>1800) curpwm=1800;
-    } else if(pwmactvolt>pwmsetvolt || pwmactcur>pwmsetcur) {
+    } else if(pwmactvolt>pwmsetvolt || pwmactcurAD>pwmsetcurAD) {
         curpwm--;
         if(curpwm<0) curpwm=0;
     }
