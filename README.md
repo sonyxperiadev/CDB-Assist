@@ -10,8 +10,7 @@ Firmware: GPLv3
 Hardware: Creative Commons Attribution-ShareAlike 4.0 International License
 
 # Acknowledgements
-This project is using the C PID Library - Version 1.0.1, GPLv3
- * modified my Matthew Blythe <mblythester@gmail.com> mjblythe.com/hacks
- * originally by Brett Beauregard <br3ttb@gmail.com> brettbeauregard.com
+This project is using the [C PID Library - Version 1.0.1, GPLv3]
 
 [wiki]: https://github.com/sonyxperiadev/CDB-Assist/wiki
+[C PID Library - Version 1.0.1, GPLv3]:https://github.com/mblythe86/C-PID-Library
