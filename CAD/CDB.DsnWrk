@@ -1,0 +1,8 @@
+[ProjectGroup]
+Version=1.0
+[Project1]
+ProjectPath=DummyLoadAddOn.PrjPcb
+[Project2]
+ProjectPath=CDB-helper.PrjPCB
+[Project3]
+ProjectPath=Array.PrjPcb
